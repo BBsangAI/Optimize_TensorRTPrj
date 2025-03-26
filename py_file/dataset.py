@@ -27,7 +27,7 @@ class GetData():
         self.frame_shape2 = (16,height,width,3)          
         self.shared_mem1 = shared_memory.SharedMemory(create=True, name='shared_memory1', size=np.prod(self.frame_shape1)* np.dtype(np.float32).itemsize)    
         self.shared_mem2 = shared_memory.SharedMemory(create=True, name='shared_memory2', size=np.prod(self.frame_shape2)* np.dtype(np.float32).itemsize)    
-        self.signal_shared_mem = shared_memory.SharedMemory(create=True, name='signal_shared_memory1', size=np.dtype(np.bool).itemsize)
+        self.signal_shared_mem = shared_memory.SharedMemory(create=True, name='signal_shared_memory1', size=np.dtype(np.bool_).itemsize)
         # 使用锁和信号量保证线程安全
         self.lock = mp.Lock()
         self.frame_semname = "frame_semaphore"
@@ -62,8 +62,10 @@ class GetData():
             print("No gesture event detected.")
             return False  # 返回 False 表示没有检测到手势信号
     
-    def capture(self):
-        cap = cv2.VideoCapture("v4l2src device=/dev/video0 ! image/jpeg,width=1024,height=768,framerate=30/1 ! jpegdec ! videoconvert ! videoscale ! video/x-raw,width=180,height=150 ! appsink", cv2.CAP_GSTREAMER)
+    def capture(self):      
+         
+        cap = cv2.VideoCapture("v4l2src device=/dev/video0 ! video/x-raw,format=YUY2,width=640,height=480,framerate=30/1 ! videoscale ! videoconvert ! video/x-raw,width=180,height=150 ! appsink", cv2.CAP_GSTREAMER)
+        # cap = cv2.VideoCapture("v4l2src device=/dev/video0 ! image/jpeg,width=800,height=600,framerate=60/1 ! jpegdec ! videoconvert ! videoscale! video/x-raw,width=180,height=150 ! appsink", cv2.CAP_GSTREAMER)
         frame_count = 0
         frame = []
         frames = []      

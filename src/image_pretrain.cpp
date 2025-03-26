@@ -73,7 +73,7 @@ void VideoProcessor::save_images(std::vector<cv::Mat> images){
     filename = "../images_test/output_" + std::to_string(i) + ".jpg";
     bool success = cv::imwrite(filename,image_uchar);
     if(success){
-        cout<<"图片"<<filename<<"已保存！"<<endl;
+        //cout<<"图片"<<filename<<"已保存！"<<endl;
      }
      else
       cout<<"图片"<<filename<<"保存失败！"<<endl;

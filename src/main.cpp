@@ -1,6 +1,10 @@
+#include <QApplication>
+#include <QMainWindow>
 #include "common.h"
 #include "Params.h"
 #include <csignal>
+#include <time.h>
+#include "../QT/qt.h"
 using namespace std;
 
 std::condition_variable convar;
@@ -12,7 +16,7 @@ int pipe_fd[2];
 void handGestureDetection(InferenceParams& params){      // 手势检测线程函数
     int clip_nums = 2;
     std::vector<cv::Mat> images(2);
-    int result = 0;
+    pair<int, float> result(0, 0);
     const char * signal_shm_name = "signal_shared_memory1";       // 共享内存名（dataset.py中创建）
     int signal_shm_fd = shm_open(signal_shm_name, O_RDWR, 0666);
     if(signal_shm_fd != -1)
@@ -24,8 +28,8 @@ void handGestureDetection(InferenceParams& params){      // 手势检测线程�
         //processor.save_images(images);
         result = params.Engine.TensorRT_Inference(images); 
         //std::cout <<classes_map["IsHandGesture_class"][result] << std::endl;
-        if(result == 1){ 
-            cout<<"detected"<<endl;
+        if(result.first == 1 && result.second > 0.97){ 
+            cout<<"detected 概率为："<<result.second<<endl;
             std::unique_lock<std::mutex> lock(mtx);
             handGesture_detected = true;
             classification_done = false;       
@@ -38,17 +42,23 @@ void handGestureDetection(InferenceParams& params){      // 手势检测线程�
 }
 
 void handGestureClassficition(InferenceParams& params){      // 手势分类线程函数
+    struct timespec start_time, end_time;
+    double time = 0;
     int clip_nums = 16;
     std::vector<cv::Mat> images(16);
-    int result = 0;
+    pair<int, float> result(0, 0);
     while(true){
         std::unique_lock<std::mutex> lock(mtx);
         convar.wait(lock, [] { return handGesture_detected; }); // 等待手势检测线程通知
         images = params.Video_Processor.GetFramesFromShm(params.frame_semaphore, params.shm_fd, clip_nums);
         params.Video_Processor.save_images(images);
-       
+        clock_gettime(CLOCK_MONOTONIC, &start_time);
+        cout<<"infer time:"<<endl;
         result = params.Engine.TensorRT_Inference(images);
-        std::cout << "target = " << classes_map["WhHandGesture_class"][result] << std::endl;
+        clock_gettime(CLOCK_MONOTONIC, &end_time);
+        time = (end_time.tv_sec - start_time.tv_sec) * 1000.0 + (end_time.tv_nsec - start_time.tv_nsec) / 1000000.0;
+        //cout<<"infer time:"<<time<<"ms"<<endl;
+        std::cout << "target = " << classes_map["WhHandGesture_class"][result.first] <<"概率是："<<result.second<<std::endl;
 
         handGesture_detected = false;  // 重置检测标志
         classification_done = true;    // 分类完成标志
@@ -58,8 +68,13 @@ void handGestureClassficition(InferenceParams& params){      // 手势分类线�
 }
 
 
+int main(int argc, char *argv[]){
 
-int main(){
+    //------------UI 显示----------------------------//
+    // QApplication app(argc, argv);
+    // MainWindow mainWindow;
+    // mainWindow.show(); // 先显示窗口
+   
      //-----------初始化定义-------------------------//
     const char * shm_name1 = "shared_memory1";       // 共享内存名（dataset.py中创建）
     const char * shm_name2 = "shared_memory2";       // 共享内存名（dataset.py中创建）
@@ -67,7 +82,9 @@ int main(){
     const char* init_semname = "init_semaphore";    //初始化准备信号量（dataset.py中创建）
    
     std::string HandGesture_detector_model_path = "../model/gesture_recognition_model.engine";
+    
     std::string HandGesture_classify_model_path = "../model/gesture_7classification_model.engine";
+    //std::string HandGesture_classify_model_path = "../model/gesture_7classification_model.engine";
     int shm_fd1 = 0, shm_fd2 = 0;
     Params_init();
     //-----------尝试打开共享内存-------------------------//
@@ -114,8 +131,11 @@ int main(){
     std::thread HandGestureDetect_thread(handGestureDetection, std::ref(HandGesture_detector_Params));
     std::thread HandGestureClass_thread(handGestureClassficition, std::ref(HandGesture_classify_Params)); 
 
+    
+
     HandGestureDetect_thread.join();
     HandGestureClass_thread.join();
 
     return 0;
+    //return app.exec();
 }

@@ -10,17 +10,20 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 
 # 查找所需要的包
+find_package(Qt5 COMPONENTS Widgets REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(Threads REQUIRED)
 find_package(CUDA REQUIRED)
 # 指定要编译的源文件
-file(GLOB SOURCES "src/*.cpp")
+file(GLOB SOURCES  src/*.cpp driver/src/*.cpp QT/*.cpp)
 add_executable(main ${SOURCES})    # 格式：(可执行文件 要编译的文件)
 
 # 添加库到可执行文件
-target_link_libraries(main ${OpenCV_LIBS} Threads::Threads nvonnxparser nvinfer rt ${CUDA_LIBRARIES}) 
+target_link_libraries(main ${OpenCV_LIBS} Threads::Threads nvonnxparser nvinfer rt ${CUDA_LIBRARIES} Qt5::Widgets) 
 # 添加头文件到可执行文件
 target_include_directories(main PRIVATE ${OpenCV_INCLUDE_DIRS}                          # opencv
-                                        /home/jetson/Desktop/MyAlgorithm/include        # include
+                                        /home/jetson/Desktop/Opt_CabinPrj/QT             # QT
+                                        /home/jetson/Desktop/Opt_CabinPrj/include        # include
                                         /usr/include/x86_64-linux-gnu/                  # tensorrt
+                                        /home/jetson/Desktop/Opt_CabinPrj/driver/include
                                         /usr/local/cuda/include)                        # cuda

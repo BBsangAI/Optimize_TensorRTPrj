@@ -25,7 +25,7 @@ public:
    
     void ONNX2TensorRT(std::string onnx_file_path, std::string engine_file_path);
     int TensorRT_Construct(std::string engine_path);
-    int TensorRT_Inference(std::vector<cv::Mat> inputs);
+    std::pair<int, float> TensorRT_Inference(std::vector<cv::Mat> inputs);
 
     ~TensorRT(){
         if (buffers[inputIndex]) {

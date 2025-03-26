@@ -4,10 +4,15 @@
             "name": "Linux",
             "includePath": [
                 "${workspaceFolder}/**",
-                "/usr/local/cuda/include"
+                "/usr/local/cuda/include",
+                "/usr/include/aarch64-linux-gnu/qt5/QtWidgets",
+                "/usr/include/aarch64-linux-gnu/qt5/QtCore",
+                "/usr/include/aarch64-linux-gnu/qt5/QtGui",
+                "/usr/include/aarch64-linux-gnu/qt5",
+                "/home/jetson/Desktop/Opt_CabinPrj/driver/include"
             ],
             "defines": [],
-            "compilerPath": "/usr/bin/gcc",
+            "compileCommands": "/usr/bin/gcc",
             "cStandard": "c17",
             "cppStandard": "gnu++14",
             "intelliSenseMode": "linux-gcc-arm64"

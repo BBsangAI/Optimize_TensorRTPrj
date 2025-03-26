@@ -1,5 +1,6 @@
 #include "common.h"
 #include <cuda_runtime.h>
+#include <time.h>
 using namespace nvinfer1;
 
 Logger logger;
@@ -102,7 +103,9 @@ int TensorRT::TensorRT_Construct(std::string engine_path){
     context->setBindingDimensions(inputIndex, dims);
 }
     
-int TensorRT::TensorRT_Inference(std::vector<cv::Mat> inputs){   
+std::pair<int, float> TensorRT::TensorRT_Inference(std::vector<cv::Mat> inputs){   
+    struct timespec start_time, end_time;
+    double time = 0;
     std::vector<float> h_inputs(totalSize);  // 主机上的输入数据
     
     for (size_t i = 0; i < samples; ++i) {
@@ -117,20 +120,35 @@ int TensorRT::TensorRT_Inference(std::vector<cv::Mat> inputs){
             }
         }
     }
+    clock_gettime(CLOCK_MONOTONIC, &start_time);
     
+      
     cudaMemcpyAsync(buffers[inputIndex], h_inputs.data(), 1 * 3 * samples * 112 * 112 * sizeof(float), cudaMemcpyHostToDevice);
-    // 使用 enqueueV2 进行推理
+    // 使用 enqueueV2 进行推理 
     context->enqueueV2(buffers, 0, nullptr);
     
     std::vector<float> output_data(classes); // 假设输出有 7 个元素
     cudaMemcpyAsync(output_data.data(), buffers[outputIndex], 1 * classes * sizeof(float), cudaMemcpyDeviceToHost);
-    
+    clock_gettime(CLOCK_MONOTONIC, &end_time);
     int target_index = max_element(output_data.begin(), output_data.end()) - output_data.begin();
    
-  
-    return target_index;
+    float sum_exp = 0.0f;
+    for (float val : output_data) {
+        sum_exp += std::exp(val); // 计算所有得分的指数和
+    }
+
+    // Step 2: 计算每个类别的概率
+    std::vector<float> probabilities;
+    for (float val : output_data) {
+        probabilities.push_back(std::exp(val) / sum_exp); // 将每个得分转换为概率
+    }
+
+    // Step 3: 找到最大值及其索引
+    auto max_iter = std::max_element(probabilities.begin(), probabilities.end());
+    int max_index = std::distance(probabilities.begin(), max_iter); // 获取最大值的索引
+    float max_probability = *max_iter; // 获取最大值的概率
+    time = (end_time.tv_sec - start_time.tv_sec) * 1000.0 + (end_time.tv_nsec - start_time.tv_nsec) / 1000000.0;
+    cout<<time<<"ms"<<endl;
+    return {target_index, max_probability};
 }
  
-
-
-
