@@ -33,7 +33,7 @@ struct image_info{
     int h;
     int w;
     int c;
-    image_info(int temporal, int height, int widt, int channel) : t(temporal), h(height), w(widt), c(channel) {};
+    image_info(int channel, int temporal, int height, int widt) :c(channel), t(temporal), h(height), w(widt) {};
 };
 
 struct Params{
@@ -42,7 +42,7 @@ struct Params{
     precision           prec    = FP16;
     calibrator          cal     = Entropy;
     process::tactics    tac     = process::tactics::GPU_BILINEAR;    //像素插值方法。（最近邻插值，双线性插值）
-    image_info          img     = {16, 224, 224, 3};
+    image_info          img     = {3, 16, 112, 112};
     int                 ws_size = WORKSPACESIZE;
     int                 num_cls = 27;    
 };

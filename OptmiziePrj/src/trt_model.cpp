@@ -158,19 +158,19 @@ bool Model::load_engine() {
 }
 
 void Model::inference() {
-    if (m_params->dev == CPU) {
+    // if (m_params->dev == CPU) {
         preprocess_cpu();
-    } else {
-        preprocess_gpu();
-    }
+    // } else {
+    //     preprocess_gpu();
+    // }
 
-    enqueue_bindings();
+   enqueue_bindings();
 
-    if (m_params->dev == CPU) {
+    // if (m_params->dev == CPU) {
         postprocess_cpu();
-    } else {
-        postprocess_gpu();
-    }
+    // } else {
+    //     postprocess_gpu();
+    // }
 }
 
 bool Model::enqueue_bindings() {

@@ -18,8 +18,8 @@ find_package(OpenCV REQUIRED)
 find_package(Threads REQUIRED)
 find_package(CUDA REQUIRED)
 # 指定要编译的源文件
-# file(GLOB SOURCES  src/*.cpp driver/src/*.cpp QT/*.cpp)
-file(GLOB SOURCES  driver/src/*.cpp  QT/*.cpp)
+# file(GLOB SOURCES  src/*.cpp OptmiziePrj/src/*.cpp QT/*.cpp)
+file(GLOB SOURCES  OptmiziePrj/src/*.cpp  QT/*.cpp)
 add_executable(main ${SOURCES})    # 格式：(可执行文件 要编译的文件)
 
 # 添加库到可执行文件
@@ -32,12 +32,12 @@ target_link_libraries(main ${OpenCV_LIBS}
                         ${CUDA_LIBRARIES}
                         Qt5::Widgets
                         /usr/local/cuda/lib64/libcudart.so              # cuda runtime
-                        #/home/jetson/Desktop/Opt_CabinPrj/driver/src/trt_proprecess.o
+                        #/home/jetson/Desktop/Opt_CabinPrj/OptmiziePrj/src/trt_proprecess.o
                         stdc++fs
                         ) 
 # 添加头文件到可执行文件
 target_include_directories(main PRIVATE ${OpenCV_INCLUDE_DIRS}                          # opencv
                                         /home/jetson/Desktop/Opt_CabinPrj/QT            # QT
                                         /usr/include/aarch64-linux-gnu/                  # tensorrt
-                                        /home/jetson/Desktop/Opt_CabinPrj/driver/include
+                                        /home/jetson/Desktop/Opt_CabinPrj/OptmiziePrj/include
                                         /usr/local/cuda/include)                        # cuda

@@ -18,10 +18,10 @@ void Classifier::setup(const void* data, const std::size_t size){
     m_outputDims  = m_context->getBindingDimensions(1);// 动态维度
     CUDA_CHECK(cudaStreamCreate(&m_stream));
 
-    m_inputSize     = m_params->img.h * m_params->img.w * m_params->img.c * sizeof(float);
+    m_inputSize     = m_params->img.t * m_params->img.h * m_params->img.w * m_params->img.c * sizeof(float);
     m_outputSize    = m_params->num_cls * sizeof(float);
     m_imgArea       = m_params->img.h * m_params->img.w;
-
+    printf("%d * %d * %d * %d\n", m_params->img.t, m_params->img.h, m_params->img.w, m_params->img.c);
      // malloc
     // 0: device   1: host
     CUDA_CHECK(cudaMallocHost(&m_inputMemory[0], m_inputSize));
@@ -44,19 +44,41 @@ bool Classifier::preprocess_cpu(){
     float std[]        = {0.225, 0.224, 0.229};
 
     /*Preprocess -- 读取数据*/
-    cv::Mat input_image;
-    input_image = cv::imread(m_imagePath);
-    if (input_image.data == nullptr) {
+    // cv::Mat input_image;
+    // input_image = cv::imread(m_imagePath);
+    if (m_batchImages.empty()) {
         LOGE("ERROR: Image file not founded! Program terminated"); 
         return false;
     }
 
     /*Preprocess -- -- host端进行normalization和BGR2RGB, NHWC->NCHW*/
-    ///////////未实现////////////
+      for (int batch = 0; batch < m_params->img.t; batch++) {
+            // 计算当前批次索引的内存偏移
+        cv::resize(m_batchImages[batch], m_batchImages[batch], cv::Size(m_params->img.w, m_params->img.h), 0, 0, cv::INTER_LINEAR);
+        /*Preprocess -- host端进行normalization和BGR2RGB, NHWC->NCHW*/
+        int index;
+        int offset_ch0 = m_imgArea * 0;
+        int offset_ch1 = m_imgArea * 1;
+        int offset_ch2 = m_imgArea * 2;
+        for (int i = 0; i < m_inputDims.d[4]; i++) {
+            for (int j = 0; j < m_inputDims.d[1]; j++) {       //1 3 16 112 112
+                index = i * m_inputDims.d[1] * m_inputDims.d[3] + j * m_inputDims.d[3];
+                m_inputMemory[0][offset_ch2++] = (m_batchImages[batch].data[index + 0] / 255.0f - mean[0]) / std[0];
+                m_inputMemory[0][offset_ch1++] = (m_batchImages[batch].data[index + 1] / 255.0f - mean[1]) / std[1];
+                m_inputMemory[0][offset_ch0++] = (m_batchImages[batch].data[index + 2] / 255.0f - mean[2]) / std[2];
+            }
+        }
 
-
-
-    ///////////未实现////////////
+        // 保存每张处理后的图像
+        // std::string savePath = "../OptmiziePrj/test_image/processed_image_" + std::to_string(i) + ".jpg";  // 保存路径和文件名
+        // cv::Mat savedImage;
+        // cv::cvtColor(m_batchImages[i], savedImage, cv::COLOR_RGB2BGR);  // 转换颜色通道，从 RGB 转回 BGR
+        // if (!cv::imwrite(savePath, savedImage)) {
+        //     std::cerr << "图像保存失败：" << savePath << std::endl;
+        // } else {
+        //     std::cout << "保存成功: " << savePath << std::endl;
+        // }
+    }
 
     /*Preprocess -- 测速*/
     m_timer->start_cpu();
@@ -85,7 +107,7 @@ bool Classifier::preprocess_gpu() {
             float* currentInput = static_cast<float*>(m_inputMemory[1]) + i * m_imgArea * m_params->img.c;
             
             // 处理每张图像
-            process::preprocess_resize_gpu(m_batchImages[i], currentInput,
+            process::preprocess_resize_gpu(m_batchImages[i], m_inputMemory[1],
                                          m_params->img.h, m_params->img.w, 
                                          mean, std, process::tactics::GPU_BILINEAR);
         }
@@ -120,14 +142,14 @@ bool Classifier::postprocess_cpu(){
     m_timer->start_cpu();
     /*Postprocess -- 将device上的数据移动到host上*/
     int output_size    = m_params->num_cls * sizeof(float);
-    CUDA_CHECK(cudaMemcpyAsync(m_outputMemory[0], m_outputMemory[1], output_size, cudaMemcpyKind::cudaMemcpyDeviceToHost, m_stream));
+    CUDA_CHECK(cudaMemcpyAsync(m_inputMemory[0], m_inputMemory[1], output_size, cudaMemcpyKind::cudaMemcpyDeviceToHost, m_stream));
     CUDA_CHECK(cudaStreamSynchronize(m_stream));
 
     /*Postprocess -- 寻找label*/
     ImageNetLabels labels;
-    int pos = max_element(m_outputMemory[0], m_outputMemory[0] + m_params->num_cls) - m_outputMemory[0];
-    float confidence = m_outputMemory[0][pos] * 100;
-
+    int pos = max_element(m_inputMemory[0], m_inputMemory[0] + m_params->num_cls) - m_inputMemory[0];
+    float confidence = m_inputMemory[0][pos] * 100;
+    
     m_timer->stop_cpu();
     m_timer->duration_cpu<timer::Timer::ms>("postprocess(CPU)");
 
