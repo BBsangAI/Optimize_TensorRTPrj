@@ -32,6 +32,7 @@ void TensorRT::ONNX2TensorRT(std::string onnx_file_path, std::string engine_file
     // 设置模型输出的精度（FP16）
     config->setFlag(BuilderFlag::kFP16);
     // 创建推理引擎
+
     ICudaEngine* engine = builder->buildEngineWithConfig(*network, *config);
 
     // ---------------------------保存---------------------------

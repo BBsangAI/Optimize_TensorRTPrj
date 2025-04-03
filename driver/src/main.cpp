@@ -6,21 +6,27 @@
 # include <condition_variable>
 # include <atomic>
 # include <opencv2/opencv.hpp>
-# include "trt_model.hpp"
 # include "trt_work.hpp"
+# include "trt_model.hpp"
 # include "trt_logger.hpp"
+# include <QApplication>
+# include "../QT/myform.h"
+#include "../QT/qt.h"
+#include <NvInferPlugin.h>
+
 
 // 图像队列及同步机制
 std::queue<cv::Mat> imgQueue;
 std::mutex queueMutex;
-std::condition_variable cv;
+std::condition_variable cv_not;
 std::atomic<bool> isRunning(true);
+std::atomic<bool> isInference(false);
 const int BATCH_SIZE = 16;
 
 // 图像采集线程函数
-void captureThread() {
+void captureThread(MyForm* form) {
     std::string pipeline = "v4l2src device=/dev/video0 ! video/x-raw,format=YUY2, "
-                           "width=320,height=240,framerate=30/1 ! videoconvert ! videoscale ! "
+                           "width=320,height=240,framerate=30/1 ! videoconvert ! videoflip method=horizontal-flip ! videoscale ! "
                            "video/x-raw,width=180,height=150 ! appsink";
     // 打开摄像头
     cv::VideoCapture cap(pipeline, cv::CAP_GSTREAMER);
@@ -29,16 +35,23 @@ void captureThread() {
         isRunning = false;
         return;
     }
-
+    else {
+        std::cout << "摄像头已打开" << std::endl;
+    }
     while (isRunning) {
-        cv::Mat frame;
-        if (!cap.read(frame)) {
-            std::cerr << "无法读取摄像头图像！" << std::endl;
-            break;
-        }
+        while(isInference) {
+            cv::Mat frame;
+            if (!cap.read(frame)) {
+                std::cerr << "无法读取摄像头图像！" << std::endl;
+                break;
+            }
 
-        // 将图像放入队列
-        {
+            // 将图像传递给UI
+            if (form) {
+                form->enqueueFrame(frame);
+            }
+
+            // 将图像放入队列
             std::lock_guard<std::mutex> lock(queueMutex);
             imgQueue.push(frame.clone());
             
@@ -46,11 +59,11 @@ void captureThread() {
             if (imgQueue.size() > BATCH_SIZE * 3) {
                 imgQueue.pop();
             }
-        }
-        cv.notify_one(); // 通知推理线程
+            cv_not.notify_one(); // 通知推理线程
 
-        // 控制采集速度
-        std::this_thread::sleep_for(std::chrono::milliseconds(30)); // ~30fps
+            // 控制采集速度
+            std::this_thread::sleep_for(std::chrono::milliseconds(30)); // ~30fps
+        }
     }
     
     cap.release();
@@ -65,7 +78,7 @@ void inferenceThread(std::shared_ptr<worker::Worker> worker) {
         // 等待至少有一帧图像可用
         {
             std::unique_lock<std::mutex> lock(queueMutex);
-            cv.wait(lock, []{ return !imgQueue.empty() || !isRunning; });
+            cv_not.wait(lock, []{ return !imgQueue.empty() || !isRunning; });
             
             if (!isRunning && imgQueue.empty()) break;
             
@@ -88,17 +101,25 @@ void inferenceThread(std::shared_ptr<worker::Worker> worker) {
             }
             
             if (batch.size() == BATCH_SIZE) {
+                printf("开始推理");
                 worker->inferenceWithBatch(batch);
                 std::cout << "完成一批次(16帧)推理" << std::endl;
             }
-            
             batch.clear();
         }
     }
 }
 
-int main(){
-    std::string onnxpath = "../model/mobilenetv2.onnx";
+
+
+
+int main(int argc, char *argv[]){
+    // 初始化QT应用
+    QApplication app(argc, argv);
+
+    // 创建模型和参数
+    initLibNvInferPlugins(nullptr, "");     // 初始化TensorRT插件 这个版本代码需要带上这个否则报没有插件的错误
+    std::string onnxpath = "../model/gesture_7classification_model_MEMATsmv1.onnx";
     auto level = logger::Level::VERB;
     auto params = model::Params();
 
@@ -108,25 +129,31 @@ int main(){
     params.dev = model::device::GPU; 
     params.prec = model::precision::FP16;
     params.cal = model::calibrator::Entropy;
-
+    printf("start.....");
     auto worker = worker::create_worker(onnxpath, level, params);
     
+    // 创建并显示QT窗体
+    // MainWindow mainWindow;
+    // mainWindow.show(); // 先显示窗口
+    MyForm form;
+    form.setInferenceWorker(worker);
+    form.show();
+    
     // 启动线程
-    std::thread capture(captureThread);
+    std::thread capture(captureThread, &form);
     std::thread inference(inferenceThread, worker);
     
-    // 等待用户输入退出
-    std::cout << "按任意键退出程序..." << std::endl;
-    std::cin.get();
+    // 运行QT事件循环
+    int ret = app.exec();
     
     // 停止线程
     isRunning = false;
-    cv.notify_all();
+    cv_not.notify_all();
     
     // 等待线程结束
     capture.join();
     inference.join();
     
     std::cout << "程序已退出" << std::endl;
-    return 0;
+    return ret;
 }

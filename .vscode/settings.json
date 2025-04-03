@@ -78,6 +78,7 @@
         "ios": "cpp",
         "future": "cpp",
         "unordered_set": "cpp",
-        "cfenv": "cpp"
+        "cfenv": "cpp",
+        "strstream": "cpp"
     }
 }

@@ -17,7 +17,7 @@ enum class tactics : int32_t{
 
 cv::Mat preprocess_resize_cpu(const cv::Mat &src, const int &tarH, const int &tarW, float* mean, float& std, tactics tac);
 void    preprocess_resize_gpu(const cv::Mat &h_src, float* d_tar, const int &tarH, const int &tarW, float* h_mean, float* h_std, tactics tac);
-void    resize_gpu(const uint8_t* d_src, float* d_tar, int srcW, int srcH, int tarW, int tarH, float* d_mean, float* d_std, process::tactics tac);
+//void    resize_gpu(const uint8_t* d_src, float* d_tar, int srcW, int srcH, int tarW, int tarH, float* d_mean, float* d_std, process::tactics tac);
 
 };
 

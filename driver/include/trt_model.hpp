@@ -3,7 +3,7 @@
 
 # include "trt_preprocess.hpp"
 
-# define WORKSPACESIZE 1 << 30;
+#define WORKSPACESIZE (128 * (1 << 20));
 
 namespace model{
 enum task_type{
@@ -60,7 +60,7 @@ void destory_trt_ptr(T* ptr){
 class Model{
 public:
     Model(std::string onnx_path, logger::Level level, Params param);
-    virtual ~Model();
+    virtual ~Model() {};
     void load_image(std::string image_path);
     void init_model(); 
     void inference();
